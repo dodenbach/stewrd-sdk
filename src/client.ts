@@ -92,7 +92,7 @@ export class Stewrd {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
-          'User-Agent': '@stewrd/sdk/1.0.0',
+          'User-Agent': '@stewrd/sdk/2.0.0',
         },
         body: JSON.stringify(body),
         signal: controller.signal,
