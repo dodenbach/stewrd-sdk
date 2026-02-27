@@ -34,7 +34,7 @@ const stream = await stewrd.agent.stream({
 for await (const event of stream) {
   if (event.type === 'token') process.stdout.write(event.content)
   if (event.type === 'tool_start') console.log(`Using ${event.tool}...`)
-  if (event.type === 'done') console.log('\n\nTokens:', event.usage.total_tokens)
+  if (event.type === 'done') console.log('\n\nTokens:', event.usage.tokens_used)
 }
 ```
 

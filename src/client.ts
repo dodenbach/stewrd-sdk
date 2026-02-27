@@ -92,7 +92,7 @@ export class Stewrd {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
-          'User-Agent': '@stewrd/sdk/2.0.0',
+          'User-Agent': '@stewrd/sdk/2.1.0',
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -102,10 +102,11 @@ export class Stewrd {
         let errorData: { code: string; message: string; docs?: string }
         try {
           const parsed = await response.json()
+          const err = parsed.error ?? parsed
           errorData = {
-            code: parsed.code ?? 'unknown_error',
-            message: parsed.message ?? response.statusText,
-            docs: parsed.docs,
+            code: err.code ?? 'unknown_error',
+            message: err.message ?? response.statusText,
+            docs: err.docs,
           }
         } catch {
           errorData = {

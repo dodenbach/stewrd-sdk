@@ -116,17 +116,38 @@ export class AgentStream implements AsyncIterable<StreamEvent> {
 
       switch (eventType) {
         case 'token':
-          return { type: 'token', content: parsed.content ?? '' }
+          return { type: 'token', content: parsed.text ?? parsed.content ?? '' }
         case 'tool_start':
           return { type: 'tool_start', tool: parsed.tool }
         case 'tool_end':
           return { type: 'tool_end', tool: parsed.tool }
-        case 'done':
-          return {
-            type: 'done',
-            response: parsed.response,
-            usage: parsed.usage ?? parsed.response?.usage,
+        case 'done': {
+          // API sends flat: {request_id, message, files, tokens_used, duration_ms}
+          // Build AgentResponse from flat or nested shape
+          const response = parsed.response ?? {
+            id: parsed.request_id ?? parsed.id ?? '',
+            object: 'agent.response',
+            message: parsed.message ?? '',
+            capabilities_used: parsed.capabilities_used ?? [],
+            files: parsed.files ?? [],
+            usage: {
+              requests_used: parsed.requests_used ?? 0,
+              requests_limit: parsed.requests_limit ?? 0,
+              tokens_used: parsed.tokens_used ?? 0,
+            },
+            meta: {
+              duration_ms: parsed.duration_ms ?? 0,
+              project_id: parsed.project_id ?? '',
+              plan: parsed.plan ?? '',
+            },
           }
+          const usage = parsed.usage ?? response.usage ?? {
+            requests_used: 0,
+            requests_limit: 0,
+            tokens_used: parsed.tokens_used ?? 0,
+          }
+          return { type: 'done', response, usage }
+        }
         case 'error':
           return {
             type: 'error',

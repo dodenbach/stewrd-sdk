@@ -8,42 +8,40 @@ export interface StewrdOptions {
 
 /** A file attached to the agent request. */
 export interface InputFile {
-  /** Publicly accessible URL of the file. */
-  url: string
-  /** Optional display name for the file. */
-  name?: string
+  /** File name with extension. */
+  name: string
+  /** File contents as a string. */
+  content: string
 }
 
 /** A file returned in the agent response. */
 export interface ResponseFile {
-  /** Unique file identifier. */
-  id: string
-  /** File display name. */
+  /** File name. */
   name: string
-  /** Publicly accessible URL of the file. */
-  url: string
-  /** MIME type of the file. */
-  mime_type: string
-  /** File size in bytes. */
-  size_bytes: number
+  /** File contents as a string. */
+  content?: string
+  /** Download URL for the generated file (when available). */
+  url?: string
 }
 
-/** Token usage breakdown. */
+/** Request and token usage for a run. */
 export interface Usage {
-  /** Number of input tokens consumed. */
-  input_tokens: number
-  /** Number of output tokens generated. */
-  output_tokens: number
-  /** Total tokens (input + output). */
-  total_tokens: number
+  /** Requests consumed this billing period. */
+  requests_used: number
+  /** Your plan's monthly request quota. */
+  requests_limit: number
+  /** Tokens consumed for this request. */
+  tokens_used: number
 }
 
 /** Response metadata. */
 export interface Meta {
-  /** Model used for the request. */
-  model: string
   /** Time to complete in milliseconds. */
   duration_ms: number
+  /** The project this request was made against. */
+  project_id: string
+  /** Your current plan. */
+  plan: string
 }
 
 /** Parameters for `stewrd.agent.run()` and `stewrd.agent.stream()`. */
@@ -62,7 +60,7 @@ export interface AgentRunParams {
 export interface AgentResponse {
   /** Unique run identifier. */
   id: string
-  /** Object type — always `"agent.run"`. */
+  /** Object type — always `"agent.response"`. */
   object: string
   /** The agent's text response. */
   message: string
