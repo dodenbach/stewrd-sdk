@@ -1,4 +1,4 @@
-import type { AgentRunParams, AgentResponse, StewrdOptions } from './types'
+import type { AgentRunParams, AgentResponse, StewrdOptions, ToolOutputParams, ToolOutput } from './types'
 import { StewrdError } from './errors'
 import { AgentStream } from './streaming'
 
@@ -26,6 +26,13 @@ export class Stewrd {
     run: (params: AgentRunParams) => Promise<AgentResponse>
     /** Run the agent with streaming — returns an async iterable of events. */
     stream: (params: AgentRunParams) => Promise<AgentStream>
+    /** Submit tool outputs and continue execution. */
+    submitToolOutputs: (params: ToolOutputParams) => Promise<AgentResponse>
+    /** Run the agent with tools and handle the full tool call loop automatically. */
+    runWithTools: (
+      params: AgentRunParams,
+      handler: (toolCall: { id: string; name: string; arguments: Record<string, unknown> }) => Promise<string>
+    ) => Promise<AgentResponse>
   }
 
   constructor(apiKey: string, options: StewrdOptions = {}) {
@@ -43,6 +50,8 @@ export class Stewrd {
     this.agent = {
       run: this.agentRun.bind(this),
       stream: this.agentStream.bind(this),
+      submitToolOutputs: this.agentSubmitToolOutputs.bind(this),
+      runWithTools: this.agentRunWithTools.bind(this),
     }
   }
 
@@ -58,6 +67,40 @@ export class Stewrd {
 
     const body = await response.json()
     return body as AgentResponse
+  }
+
+  private async agentSubmitToolOutputs(params: ToolOutputParams): Promise<AgentResponse> {
+    const response = await this.request(`/v1/agent/${params.requestId}/tool-outputs`, {
+      tool_outputs: params.toolOutputs,
+      _compute_instance: params.computeInstance,
+    })
+
+    const body = await response.json()
+    return body as AgentResponse
+  }
+
+  private async agentRunWithTools(
+    params: AgentRunParams,
+    handler: (toolCall: { id: string; name: string; arguments: Record<string, unknown> }) => Promise<string>
+  ): Promise<AgentResponse> {
+    let data = await this.agentRun(params)
+
+    while (data.status === 'requires_tool_outputs') {
+      const outputs: ToolOutput[] = await Promise.all(
+        (data.tool_calls ?? []).map(async (call) => ({
+          tool_call_id: call.id,
+          output: await handler(call),
+        }))
+      )
+
+      data = await this.agentSubmitToolOutputs({
+        requestId: data.id,
+        toolOutputs: outputs,
+        computeInstance: data._compute_instance,
+      })
+    }
+
+    return data
   }
 
   private async agentStream(params: AgentRunParams): Promise<AgentStream> {
@@ -92,7 +135,7 @@ export class Stewrd {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
-          'User-Agent': '@stewrd/sdk/2.1.0',
+          'User-Agent': '@stewrd/sdk/2.2.0',
         },
         body: JSON.stringify(body),
         signal: controller.signal,

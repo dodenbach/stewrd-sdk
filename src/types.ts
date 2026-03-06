@@ -24,14 +24,47 @@ export interface ResponseFile {
   url?: string
 }
 
+/** A custom tool definition for function calling. */
+export interface ToolDefinition {
+  /** Tool name — alphanumeric and underscores only, max 64 chars. */
+  name: string
+  /** Description of what the tool does, max 1024 chars. */
+  description: string
+  /** JSON Schema for the tool parameters. Must have `type: "object"`. */
+  parameters: {
+    type: 'object'
+    properties?: Record<string, unknown>
+    required?: string[]
+    [key: string]: unknown
+  }
+}
+
+/** A tool call returned by the agent when it needs to invoke a custom tool. */
+export interface ToolCall {
+  /** Unique identifier for this tool call. Pass back with the output. */
+  id: string
+  /** Name of the tool to invoke. */
+  name: string
+  /** Parsed arguments for the tool. */
+  arguments: Record<string, unknown>
+}
+
+/** A tool output to submit back to the agent. */
+export interface ToolOutput {
+  /** The `id` from the tool call. */
+  tool_call_id: string
+  /** The result of executing the tool (max 100KB). */
+  output: string
+}
+
 /** Request and token usage for a run. */
 export interface Usage {
-  /** Requests consumed this billing period. */
-  requests_used: number
-  /** Your plan's monthly request quota. */
-  requests_limit: number
+  /** Credits consumed for this request (0 on tool output continuations). */
+  credits_this_request?: number
+  /** Credits remaining in this billing period. */
+  credits_remaining?: number
   /** Tokens consumed for this request. */
-  tokens_used: number
+  tokens_used?: number
 }
 
 /** Response metadata. */
@@ -52,8 +85,20 @@ export interface AgentRunParams {
   capabilities?: string[]
   /** Files to include as context. */
   files?: InputFile[]
+  /** Custom tools the agent can call. When provided, only `chat` capability is used. */
+  tools?: ToolDefinition[]
   /** @internal Set by the SDK — do not pass directly. */
   stream?: boolean
+}
+
+/** Parameters for `stewrd.agent.submitToolOutputs()`. */
+export interface ToolOutputParams {
+  /** The request ID from the initial agent response. */
+  requestId: string
+  /** Array of tool outputs to submit. */
+  toolOutputs: ToolOutput[]
+  /** Compute instance ID for machine affinity routing. */
+  computeInstance?: string
 }
 
 /** Synchronous response from `stewrd.agent.run()`. */
@@ -62,16 +107,22 @@ export interface AgentResponse {
   id: string
   /** Object type — always `"agent.response"`. */
   object: string
-  /** The agent's text response. */
-  message: string
+  /** Response status — `"completed"` or `"requires_tool_outputs"`. */
+  status: 'completed' | 'requires_tool_outputs'
+  /** The agent's text response. Present when `status` is `"completed"`. */
+  message?: string
+  /** Tool calls the agent wants to make. Present when `status` is `"requires_tool_outputs"`. */
+  tool_calls?: ToolCall[]
   /** Capabilities that were actually used. */
-  capabilities_used: string[]
+  capabilities_used?: string[]
   /** Files produced by the agent. */
-  files: ResponseFile[]
+  files?: ResponseFile[]
   /** Token usage for this run. */
   usage: Usage
   /** Run metadata. */
-  meta: Meta
+  meta?: Meta
+  /** Compute instance ID — pass back with tool outputs for machine affinity routing. */
+  _compute_instance?: string
 }
 
 // ---------------------------------------------------------------------------
